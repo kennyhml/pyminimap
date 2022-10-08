@@ -67,7 +67,7 @@ class Minimap:
             tools.to_png(img.rgb, img.size, output=path)
         return path
 
-    def get_target_pixels(self, rgb: tuple, variance=10) -> set | None:
+    def get_target_pixels(self, rgb: tuple, variance=10, x1=None, y1=None, x2=None, y2=None) -> set | None:
         """Finds all matching targets on the minimap
 
         Parameters
@@ -83,7 +83,9 @@ class Minimap:
         A list of matching points, otherwise None
         """
         try:
-            image = pg.screenshot(region=self._boundaries)
+            if not x1:
+                x1, y1, x2, y2 = self._boundaries
+            image = pg.screenshot(region=(x1, y1, x2, y2))
             image = cv.cvtColor(np.array(image), 0)
             cv.imwrite("images/temp/test.png", image)
 

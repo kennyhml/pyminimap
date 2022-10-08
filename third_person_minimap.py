@@ -1,4 +1,4 @@
-from minimap import Minimap
+from pyminimap.minimap import Minimap
 import pydirectinput as input
 import time
 
