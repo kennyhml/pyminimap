@@ -1,11 +1,15 @@
 import math
+import numpy as np
+from threading import Thread
+
 from mss import mss, tools
 import pyautogui as pg
 import cv2 as cv
-import numpy as np
 import win32gui, win32api, win32con
 from win32api import GetSystemMetrics
-from threading import Thread
+
+from movement import Mouse
+
 
 
 class Minimap:
@@ -263,3 +267,89 @@ class Minimap:
                 win32gui.SetPixel(dc, topleft[0], y, red)
 
             past_coordinates = (m[0] - 20, m[1] - 20, m[0] + 20, m[1] + 20)
+
+class IsometricMinimap(Minimap):
+    """Minimap handler for isometric game minimaps
+    -----------------------------------------------
+
+    Contructs a minimap by passed boundaries, contains methods to
+    grab targets, distances and relative positions off of an image.
+
+    This class assumes an isometric, top-down view game.
+    """
+
+    def position_to_direction(self, target: tuple, multiplier=6) -> tuple:
+        """Takes a target found on the minimap and returns the direction to walk
+        assuming an isometric game where the player is in the middle of the screen.
+
+        The multiplier gets more important the smaller the distance to the target is.
+
+        Parameters
+        ----------
+        target: `tuple`
+            The target or point on the minimap to direct towards
+
+        multiplier `int`
+            The multiplier for the length of the direction outgoing from the center
+
+        Returns
+        ----------
+        A tuple containing the point to move to and the distance to the enemy
+        """
+        if not target:
+            return None, None
+
+        center = 960, 540
+        m = multiplier
+        dist = math.dist(target, self._player)
+        return (
+            (
+                (center[0] + (target[0] - self._player[0]) * m),
+                (center[1] + (target[1] - self._player[1]) * m),
+            ),
+            dist,
+        )
+
+class ThirdPersonMinimap(Minimap):
+    """Minimap handler for third-person game minimaps
+    -----------------------------------------------
+
+    Contructs a minimap by passed boundaries, contains methods to
+    grab targets, distances and relative positions off of an image.
+
+    This class assumes a third person game.
+    """
+
+    def __init__(self, x1, y1, x2, y2, player, front_view, rotates=False, debug=False):
+        super().__init__(x1, y1, x2, y2, player, rotates, debug)
+        self.front_view = front_view
+
+    def get_target_side(self, target):
+        """Takes the position of an enemy and determines if we need to turn left or right"""
+        if target[0] < 1747:
+            return "left"
+        if target[0] > 1755:
+            return "right"
+        return "front"
+
+    def get_focus_on_target(self, expected_dist, expected_rgb, direction: str):
+        print(f"Looking for mob at distance {expected_dist} on the {direction} side!")
+        x, y, w, h = self.front_view
+
+        for _ in range(200):
+            front_targets = self.get_target_pixels(
+                rgb=expected_rgb, x1=x, y1=y, x2=w, y2=h
+            )
+
+            closest, dist = self.get_closest_target(
+                front_targets, min_dist=expected_dist - 6, max_dist=expected_dist + 6
+            )
+
+            if closest:
+                print(f"Target found at {closest}, {dist}m away!")
+                return True
+
+            if direction == "left":
+                Mouse.turn_left()
+            else:
+                Mouse.turn_right()
